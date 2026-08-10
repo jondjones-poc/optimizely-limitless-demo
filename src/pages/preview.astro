@@ -1,0 +1,180 @@
+---
+import Base from '../layouts/Base.astro';
+import { resolveLayout } from '../layouts/registry';
+import { getPreviewContent, createGraphClient, ALL_PAGE_FRAGMENTS } from '../lib/graph';
+import type { PreviewParams } from '../lib/graph';
+
+const cmsUrl = import.meta.env.OPTIMIZELY_CMS_URL;
+
+const params: PreviewParams = {
+  preview_token: Astro.url.searchParams.get('preview_token') ?? '',
+  key: Astro.url.searchParams.get('key') ?? '',
+  ctx: Astro.url.searchParams.get('ctx') ?? '',
+  ver: Astro.url.searchParams.get('ver') ?? '',
+  loc: Astro.url.searchParams.get('loc') ?? '',
+};
+
+let content: any = null;
+let error: string | null = null;
+let fallbackNotice: string | null = null;
+
+if (!params.preview_token || !params.key) {
+  error = 'Missing required preview parameters (preview_token, key).';
+} else {
+  try {
+    content = await getPreviewContent(params);
+  } catch (e: any) {
+    // The SDK throws when Graph hasn't yet indexed a draft. Fall back to a raw
+    // key-based query using the preview token, narrowing progressively.
+    const msg = e.message ?? '';
+    const shouldFallback =
+      msg.includes('Content type "undefined"') ||
+      msg.includes('not included in the registry') ||
+      msg.includes('No content found for key');
+    if (shouldFallback) {
+      try {
+        const client = createGraphClient();
+        const fragments = `
+          __typename
+          _metadata { key displayName types version locale url { default } }
+          ${ALL_PAGE_FRAGMENTS}
+        `;
+
+        const queries = [
+          {
+            strategy: 'exact',
+            query: `query Q($key:String,$ver:String,$loc:String){_Content(where:{_metadata:{key:{eq:$key},version:{eq:$ver},locale:{eq:$loc}}}){items{${fragments}}}}`,
+            vars: { key: params.key, ver: params.ver, loc: params.loc },
+          },
+          {
+            strategy: 'locale-only',
+            query: `query Q($key:String,$loc:String){_Content(where:{_metadata:{key:{eq:$key},locale:{eq:$loc}}}){items{${fragments}}}}`,
+            vars: { key: params.key, loc: params.loc },
+          },
+          {
+            strategy: 'key-only',
+            query: `query Q($key:String){_Content(where:{_metadata:{key:{eq:$key}}}){items{${fragments}}}}`,
+            vars: { key: params.key },
+          },
+        ];
+
+        for (const step of queries) {
+          const data = await client.request(step.query, step.vars, params.preview_token);
+          const hit = data?._Content?.items?.[0];
+          if (hit) {
+            content = hit;
+            if (step.strategy !== 'exact') {
+              fallbackNotice = step.strategy === 'locale-only'
+                ? `Latest indexed version shown (requested version ${params.ver} not yet indexed).`
+                : `Default-locale content shown — no indexed content for locale "${params.loc}" yet. Save the translation and reload.`;
+            }
+            break;
+          }
+        }
+
+        if (!content) {
+          error = `Content not yet indexed for preview. Key: ${params.key}, version: ${params.ver}, locale: ${params.loc}. Save the draft and try again.`;
+        }
+      } catch (fallbackErr: any) {
+        error = `Preview fallback failed: ${fallbackErr.message}`;
+      }
+    } else {
+      error = msg || 'Failed to fetch preview content.';
+    }
+  }
+}
+
+// Preview responses identify the type via `__typename`; path fetches use
+// `_metadata.types`. Feed both into the registry.
+const typeList: string[] = [...(content?._metadata?.types ?? []), content?.__typename].filter(Boolean);
+const layout = !error && content ? resolveLayout(typeList) : null;
+const Layout = layout?.component;
+const pageTitle = content?.metaTitle ?? content?._metadata?.displayName ?? 'Preview';
+const pageDescription = content?.metaDescription ?? '';
+
+const previewMeta = { cmsUrl, loc: params.loc, ver: params.ver, ctx: params.ctx, fallbackNotice };
+---
+
+{/* Full-document layouts render complete documents; hand them the preview chrome to inject. */}
+{!error && content && layout?.fullDocument ? (
+  <Layout content={content} preview={previewMeta} />
+) : (
+
+<Base title={pageTitle} description={pageDescription} locale={params.loc || 'en'}>
+  {cmsUrl && <script is:inline src={`${cmsUrl}/util/javascript/communicationinjector.js`}></script>}
+
+  <script is:inline>
+    window.addEventListener('optimizely:cms:contentSaved', function(e) {
+      var previewUrl = e.detail && e.detail.previewUrl;
+      if (previewUrl) {
+        try {
+          var url = new URL(previewUrl, window.location.origin);
+          window.location.replace(url.toString());
+        } catch(_) {
+          window.location.replace(previewUrl);
+        }
+      }
+    });
+  </script>
+
+  <div class="bg-amber-50 border-b border-amber-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-3">
+      <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+      <span class="text-sm font-medium text-amber-800">
+        Preview Mode &mdash; locale: <strong>{params.loc || 'default'}</strong>
+        &middot; version: {params.ver}
+        &middot; context: {params.ctx}
+      </span>
+    </div>
+  </div>
+
+  {fallbackNotice && (
+    <div class="bg-sky-50 border-b border-sky-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 text-sm text-sky-800">
+        ℹ️ {fallbackNotice}
+      </div>
+    </div>
+  )}
+
+  {error ? (
+    <section class="max-w-3xl mx-auto px-4 py-16">
+      <h1 class="font-display font-bold text-3xl text-base-content mb-4">Preview Error</h1>
+      <p class="text-base-content/60 mb-4">{error}</p>
+      <details class="bg-base-200/30 rounded-xl border border-base-200 overflow-hidden">
+        <summary class="px-6 py-3 text-sm font-medium text-base-content/50 cursor-pointer">Preview Parameters</summary>
+        <pre class="px-6 pb-6 text-xs overflow-auto text-base-content/60">{JSON.stringify(params, null, 2)}</pre>
+      </details>
+    </section>
+  ) : Layout ? (
+    <Layout content={content} />
+  ) : content ? (
+    <section class="max-w-3xl mx-auto px-4 py-16">
+      <h1 class="font-display font-bold text-3xl text-base-content mb-2">
+        {content._metadata?.displayName ?? content.__typename ?? 'Untitled'}
+      </h1>
+      <p class="text-sm text-base-content/50 mb-6">
+        Type: {typeList.join(', ') || 'unknown'} &middot; Locale: {params.loc}
+      </p>
+      <p class="text-base-content/70">
+        No layout registered for this content type. Add one in <code>src/layouts/registry.ts</code>.
+      </p>
+    </section>
+  ) : (
+    <section class="max-w-3xl mx-auto px-4 py-16">
+      <h1 class="font-display font-bold text-3xl text-base-content mb-4">No Content</h1>
+      <p class="text-base-content/60">Preview returned no content for key <code>{params.key}</code>.</p>
+    </section>
+  )}
+
+  {content && (
+    <div slot="debug" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <details class="bg-base-200/30 rounded-xl border border-base-200 overflow-hidden">
+        <summary class="px-6 py-3 text-sm font-medium text-base-content/50 cursor-pointer hover:text-base-content/70 transition-colors">
+          Preview Response JSON
+        </summary>
+        <pre class="px-6 pb-6 text-xs overflow-auto text-base-content/60">{JSON.stringify(content, null, 2)}</pre>
+      </details>
+    </div>
+  )}
+</Base>
+)}

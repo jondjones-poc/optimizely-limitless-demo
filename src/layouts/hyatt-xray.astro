@@ -1,0 +1,208 @@
+---
+/**
+ * Hyatt X-ray overlay — ported from the multi-customer platform's
+ * `canon-xray.astro`, restyled to the Hyatt navy/gold/cream system.
+ *
+ * Traces every `[data-xray]` block on the page and shows the Opal tools + data
+ * sources that produced it — the sales narrative for how the page is assembled.
+ * Drop `<HyattXray />` at the end of the layout's <body>; annotate sections with
+ *   data-xray="Component name"
+ *   data-xt="tool|tool"        (pipe-separated)
+ *   data-xd="data|data"        (pipe-separated)
+ *
+ * Naming: every id is `hyxray-*` and every class `hyxr-*`. The route imports
+ * Base.astro → global.css, so Astro injects the Tailwind+DaisyUI bundle into
+ * this page too and a generic class name would silently inherit DaisyUI's
+ * component styles (see AGENTS.md "Prefix page classes `hy-`").
+ *
+ * No `100vh` anywhere: the overlay is `position:fixed; inset:0`, which is
+ * viewport-relative without contributing to document height — a viewport-height
+ * element would feed the CMS preview iframe's height measurement back into
+ * itself and cause infinite scroll.
+ *
+ * Styles are `is:global` because the .hyxr-box / .hyxr-card elements are created
+ * at runtime by the script (Astro's scoping only rewrites markup it compiles).
+ */
+---
+<div id="hyxray-fab">
+  <button type="button" aria-label="Enter X-ray mode — trace the tools and data behind this page"><span class="hyxr-ico"></span> X-ray this page</button>
+</div>
+<div id="hyxray-root" aria-hidden="true">
+  <div id="hyxray-backdrop"></div>
+  <div id="hyxray-grid"></div>
+  <div id="hyxray-scan"></div>
+  <div class="hyxr-layer" id="hyxray-boxes"></div>
+  <div class="hyxr-layer" id="hyxray-cards"></div>
+</div>
+<div id="hyxray-status" hidden>
+  <span class="hyxr-live">X-ray mode</span>
+  <span class="hyxr-cnt"><b id="hyxray-count">0</b> components traced</span>
+  <button id="hyxray-exit" type="button">✕ Exit</button>
+</div>
+
+<style is:global>
+  #hyxray-fab { position: fixed; right: 22px; bottom: 22px; z-index: 130; }
+  #hyxray-fab button { display:inline-flex; align-items:center; gap:9px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    letter-spacing:.06em; color:#f7f3ec; background:#091a32; border:1px solid rgba(194,160,96,.45); border-radius:2px; padding:12px 20px; cursor:pointer;
+    box-shadow:0 16px 40px -16px rgba(9,26,50,.6); transition:border-color .3s, transform .3s, background .3s; }
+  #hyxray-fab button:hover { border-color:#c2a060; background:#0e2240; transform:translateY(-2px); }
+  #hyxray-fab button:focus-visible { outline:2px solid #dcc08a; outline-offset:3px; }
+  #hyxray-fab .hyxr-ico { width:16px; height:16px; border:1.5px solid #c2a060; border-radius:999px; position:relative; }
+  #hyxray-fab .hyxr-ico::after { content:''; position:absolute; inset:4px; background:#c2a060; border-radius:999px; }
+
+  /* fixed + inset:0 — never 100vh (CMS preview iframe height feedback loop) */
+  #hyxray-root { position: fixed; inset: 0; z-index: 140; display: none; }
+  #hyxray-root.hyxr-on { display: block; }
+  #hyxray-backdrop { position:absolute; inset:0; pointer-events:auto;
+    background:
+      linear-gradient(rgba(247,243,236,.74), rgba(247,243,236,.80)),
+      radial-gradient(circle at 50% 24%, rgba(14,34,64,.08), transparent 62%);
+    -webkit-backdrop-filter: blur(2px) saturate(1.04); backdrop-filter: blur(2px) saturate(1.04); }
+  #hyxray-grid { position:absolute; inset:0; pointer-events:none; opacity:.7;
+    background-image:
+      linear-gradient(rgba(14,34,64,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(14,34,64,.07) 1px, transparent 1px);
+    background-size: 42px 42px; }
+  #hyxray-scan { position:absolute; inset:0; pointer-events:none; opacity:.45;
+    background: repeating-linear-gradient(0deg, rgba(194,160,96,.05) 0, rgba(194,160,96,.05) 1px, transparent 1px, transparent 5px); }
+  .hyxr-layer { position:absolute; inset:0; pointer-events:none; }
+
+  .hyxr-box { position:absolute; pointer-events:auto; cursor:pointer; border:1px solid rgba(14,34,64,.35);
+    background: rgba(194,160,96,.05); transition: background .2s, border-color .2s; }
+  .hyxr-box:hover, .hyxr-box.hyxr-active { background: rgba(194,160,96,.14); border-color: #c2a060; }
+  .hyxr-c { position:absolute; width:13px; height:13px; border:1.5px solid #c2a060; }
+  .hyxr-c.hyxr-tl{ top:-1px; left:-1px; border-right:0; border-bottom:0; }
+  .hyxr-c.hyxr-tr{ top:-1px; right:-1px; border-left:0; border-bottom:0; }
+  .hyxr-c.hyxr-bl{ bottom:-1px; left:-1px; border-right:0; border-top:0; }
+  .hyxr-c.hyxr-br{ bottom:-1px; right:-1px; border-left:0; border-top:0; }
+  .hyxr-tag { position:absolute; top:6px; left:6px; font-family:'Inter',sans-serif; font-size:10px; font-weight:600; line-height:1;
+    color:#f7f3ec; background:#0e2240; padding:4px 7px; letter-spacing:.14em; }
+
+  .hyxr-card { position:absolute; width:244px; z-index:1; pointer-events:auto; font-family:'Inter',sans-serif;
+    background:rgba(255,255,255,.98); border:1px solid rgba(14,34,64,.18); border-radius:4px;
+    box-shadow:0 24px 60px -24px rgba(14,34,64,.35); overflow:hidden; }
+  .hyxr-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:linear-gradient(90deg,#c2a060,transparent); }
+  .hyxr-card.hyxr-open { z-index:6; border-color:rgba(194,160,96,.7); }
+  .hyxr-hd { display:flex; align-items:center; gap:10px; padding:13px 12px 11px; cursor:pointer; }
+  .hyxr-hd:hover { background:rgba(194,160,96,.08); }
+  .hyxr-chip { flex:none; width:28px; height:23px; display:flex; align-items:center; justify-content:center;
+    font-family:'Cormorant Garamond',Georgia,serif; font-size:14px; font-weight:600; color:#0e2240;
+    border:1px solid rgba(194,160,96,.5); border-radius:2px; }
+  .hyxr-lbl { font-family:'Inter',sans-serif; font-size:9px; font-weight:600; letter-spacing:.22em; color:#c2a060; text-transform:uppercase; }
+  .hyxr-nm { display:block; font-family:'Cormorant Garamond',Georgia,serif; color:#0e2240; font-size:18px; font-weight:600; line-height:1.15; margin-top:2px; }
+  .hyxr-chev { margin-left:auto; color:rgba(29,43,69,.4); transition:transform .3s; font-size:11px; }
+  .hyxr-card.hyxr-open .hyxr-chev { transform:rotate(180deg); }
+  .hyxr-body { display:none; padding:0 13px 14px; }
+  .hyxr-card.hyxr-open .hyxr-body { display:block; }
+  .hyxr-body .hyxr-lbl { display:block; margin:12px 0 7px; }
+  .hyxr-tools { display:flex; flex-wrap:wrap; gap:5px; }
+  .hyxr-tool { display:inline-flex; align-items:center; gap:6px; font-size:11px; color:#1d2b45;
+    background:rgba(194,160,96,.12); border:1px solid rgba(194,160,96,.4); border-radius:20px; padding:3px 10px; }
+  .hyxr-tool::before { content:'✦'; color:#c2a060; font-size:8px; }
+  .hyxr-data { list-style:none; margin:0; padding:0; }
+  .hyxr-data li { font-size:12px; color:#4a5a77; padding:3px 0 3px 14px; position:relative; line-height:1.5; }
+  .hyxr-data li::before { content:'–'; position:absolute; left:0; color:#c2a060; }
+
+  #hyxray-status { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:150; pointer-events:auto;
+    display:flex; align-items:center; gap:14px; font-family:'Inter',sans-serif;
+    background:rgba(255,255,255,.97); border:1px solid rgba(194,160,96,.5); border-radius:2px; padding:8px 10px 8px 16px;
+    box-shadow:0 20px 50px -20px rgba(14,34,64,.4); }
+  #hyxray-status[hidden] { display:none; }
+  #hyxray-status .hyxr-live { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; letter-spacing:.18em; color:#c2a060; text-transform:uppercase; }
+  #hyxray-status .hyxr-live::before { content:''; width:8px; height:8px; border-radius:999px; background:#c2a060; box-shadow:0 0 10px rgba(194,160,96,.8); }
+  #hyxray-status .hyxr-cnt { font-size:12px; color:#4a5a77; border-left:1px solid rgba(29,43,69,.14); padding-left:14px; }
+  #hyxray-status .hyxr-cnt b { color:#0e2240; }
+  #hyxray-exit { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; letter-spacing:.06em; color:#0e2240;
+    background:rgba(194,160,96,.16); border:1px solid rgba(194,160,96,.5); border-radius:2px; padding:6px 14px; cursor:pointer; }
+  #hyxray-exit:hover { background:rgba(194,160,96,.32); }
+  #hyxray-exit:focus-visible { outline:2px solid #0e2240; outline-offset:2px; }
+  @media print { #hyxray-fab, #hyxray-root, #hyxray-status { display:none !important; } }
+</style>
+
+<script is:inline>
+  // Trace each [data-xray] block, showing the tools + data that produced it.
+  (function(){
+    const root  = document.getElementById('hyxray-root');
+    if (!root) return;
+    const boxesL = document.getElementById('hyxray-boxes');
+    const cardsL = document.getElementById('hyxray-cards');
+    const status = document.getElementById('hyxray-status');
+    const fab    = document.getElementById('hyxray-fab');
+    const els = Array.from(document.querySelectorAll('[data-xray]'));
+    document.getElementById('hyxray-count').textContent = els.length;
+
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+    const items = els.map((el, i) => {
+      const n = String(i + 1).padStart(2, '0');
+      const tools = (el.dataset.xt || '').split('|').filter(Boolean);
+      const data  = (el.dataset.xd || '').split('|').filter(Boolean);
+
+      const box = document.createElement('div');
+      box.className = 'hyxr-box';
+      box.innerHTML = '<i class="hyxr-c hyxr-tl"></i><i class="hyxr-c hyxr-tr"></i><i class="hyxr-c hyxr-bl"></i><i class="hyxr-c hyxr-br"></i><span class="hyxr-tag">' + n + '</span>';
+      boxesL.appendChild(box);
+
+      const card = document.createElement('div');
+      card.className = 'hyxr-card';
+      card.innerHTML =
+        '<div class="hyxr-hd"><span class="hyxr-chip">' + n + '</span><span><span class="hyxr-lbl">Component</span>' +
+        '<span class="hyxr-nm">' + esc(el.dataset.xray) + '</span></span><span class="hyxr-chev">▾</span></div>' +
+        '<div class="hyxr-body">' +
+          (tools.length ? '<span class="hyxr-lbl">Tools</span><div class="hyxr-tools">' + tools.map(t => '<span class="hyxr-tool">' + esc(t) + '</span>').join('') + '</div>' : '') +
+          (data.length  ? '<span class="hyxr-lbl">Data</span><ul class="hyxr-data">' + data.map(d => '<li>' + esc(d) + '</li>').join('') + '</ul>' : '') +
+        '</div>';
+      cardsL.appendChild(card);
+
+      const toggle = () => { card.classList.toggle('hyxr-open'); box.classList.toggle('hyxr-active', card.classList.contains('hyxr-open')); position(); };
+      card.querySelector('.hyxr-hd').addEventListener('click', toggle);
+      box.addEventListener('click', toggle);
+      box.addEventListener('mouseenter', () => box.classList.add('hyxr-active'));
+      box.addEventListener('mouseleave', () => { if (!card.classList.contains('hyxr-open')) box.classList.remove('hyxr-active'); });
+
+      return { el, box, card };
+    });
+
+    let raf = 0, on = false;
+    function position(){
+      const vw = innerWidth, vh = innerHeight, M = 10, GAP = 8;
+      // Cards are stacked in document order: each one starts at its section's
+      // top, then is pushed down past the previous card's bottom so adjacent
+      // sections (and expanded cards, which grow downward) never overlap.
+      let lastBottom = 0;
+      items.forEach(({ el, box, card }) => {
+        const r = el.getBoundingClientRect();
+        const vis = r.width > 0 && r.bottom > 40 && r.top < vh - 10;
+        box.style.display = card.style.display = vis ? 'block' : 'none';
+        if (!vis) return;
+        box.style.left = r.left + 'px'; box.style.top = r.top + 'px';
+        box.style.width = r.width + 'px'; box.style.height = r.height + 'px';
+        const cw = card.offsetWidth || 244, ch = card.offsetHeight || 48;
+        let left = r.right + 10;
+        if (left + cw > vw - M) left = r.right - cw - 8;
+        left = Math.max(M, Math.min(left, vw - cw - M));
+        let top = Math.max(M, Math.min(r.top - 6, vh - ch - M));
+        top = Math.max(top, lastBottom);
+        lastBottom = top + ch + GAP;
+        card.style.left = left + 'px'; card.style.top = top + 'px';
+      });
+    }
+    function loop(){ if (!on) return; position(); raf = requestAnimationFrame(loop); }
+
+    function enable(){ on = true; root.classList.add('hyxr-on'); status.hidden = false; fab.style.display = 'none';
+      root.setAttribute('aria-hidden', 'false'); position(); loop();
+      document.getElementById('hyxray-exit').focus(); }
+    function disable(){ on = false; root.classList.remove('hyxr-on'); status.hidden = true; fab.style.display = 'block';
+      root.setAttribute('aria-hidden', 'true'); cancelAnimationFrame(raf);
+      items.forEach(({ card, box }) => { card.classList.remove('hyxr-open'); box.classList.remove('hyxr-active'); });
+      fab.querySelector('button').focus(); }
+
+    fab.querySelector('button').addEventListener('click', enable);
+    document.getElementById('hyxray-exit').addEventListener('click', disable);
+    addEventListener('keydown', (e) => {
+      const tag = (document.activeElement || {}).tagName || '';
+      if (e.key === 'Escape' && on) disable();
+      else if ((e.key === 'x' || e.key === 'X') && !/INPUT|TEXTAREA|SELECT/.test(tag)) (on ? disable : enable)();
+    });
+  })();
+</script>

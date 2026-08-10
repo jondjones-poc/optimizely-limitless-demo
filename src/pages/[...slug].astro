@@ -1,0 +1,68 @@
+---
+import Base from '../layouts/Base.astro';
+import { resolveLayout } from '../layouts/registry';
+import { parseSlug, getFullContentByPath } from '../lib/graph';
+
+const rawSlug = Astro.params.slug as string | undefined;
+const { locale, path } = parseSlug(rawSlug);
+
+let content: any = null;
+let error: string | null = null;
+
+try {
+  content = await getFullContentByPath(path, locale);
+} catch (e: any) {
+  error = e.message ?? 'Failed to fetch content.';
+}
+
+const contentTypes: string[] = content?._metadata?.types ?? [];
+const layout = !error && content ? resolveLayout(contentTypes) : null;
+const Layout = layout?.component;
+
+const pageTitle = content?.metaTitle ?? content?._metadata?.displayName ?? 'Page';
+const pageDescription = content?.metaDescription ?? '';
+---
+
+{/* Full-document layouts render their own chrome; everything else goes through Base. */}
+{layout?.fullDocument ? (
+  <Layout content={content} />
+) : (
+  <Base title={pageTitle} description={pageDescription} locale={locale}>
+    {error ? (
+      <section class="max-w-3xl mx-auto px-4 py-16">
+        <h1 class="font-display font-bold text-3xl text-base-content mb-4">Error</h1>
+        <p class="text-base-content/60">{error}</p>
+      </section>
+    ) : Layout ? (
+      <Layout content={content} />
+    ) : content ? (
+      <section class="max-w-3xl mx-auto px-4 py-16">
+        <h1 class="font-display font-bold text-3xl text-base-content mb-2">
+          {content._metadata?.displayName ?? 'Untitled'}
+        </h1>
+        <p class="text-sm text-base-content/50 mb-6">
+          Type: {contentTypes.join(', ') || 'unknown'} &middot; Locale: {locale}
+        </p>
+        <p class="text-base-content/70">
+          No layout registered for this content type. Add one in <code>src/layouts/registry.ts</code>.
+        </p>
+      </section>
+    ) : (
+      <section class="max-w-3xl mx-auto px-4 py-16">
+        <h1 class="font-display font-bold text-3xl text-base-content mb-4">404 &mdash; Not Found</h1>
+        <p class="text-base-content/60">No content found for <code>{path}</code> in locale <strong>{locale}</strong>.</p>
+      </section>
+    )}
+
+    {content && (
+      <div slot="debug" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <details class="bg-base-200/30 rounded-xl border border-base-200 overflow-hidden">
+          <summary class="px-6 py-3 text-sm font-medium text-base-content/50 cursor-pointer hover:text-base-content/70 transition-colors">
+            Graph Response JSON
+          </summary>
+          <pre class="px-6 pb-6 text-xs overflow-auto text-base-content/60">{JSON.stringify(content, null, 2)}</pre>
+        </details>
+      </div>
+    )}
+  </Base>
+)}

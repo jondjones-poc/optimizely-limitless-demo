@@ -1,0 +1,29 @@
+{
+  "name": "limitless-hyatt-app",
+  "type": "module",
+  "packageManager": "yarn@4.12.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "cms:login": "optimizely-cms-cli login",
+    "cms:push": "optimizely-cms-cli config push",
+    "cms:push:force": "optimizely-cms-cli config push --force",
+    "cms:pull": "optimizely-cms-cli config pull"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@astrojs/netlify": "^7.0.7",
+    "@astrojs/vercel": "^10.0.8",
+    "@optimizely/cms-sdk": "^1.0.0",
+    "@tailwindcss/typography": "^0.5.16",
+    "@tailwindcss/vite": "^4.1.13",
+    "astro": "^6.1.7",
+    "daisyui": "^5.0.0",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^6.0.2"
+  },
+  "devDependencies": {
+    "@optimizely/cms-cli": "^1.0.1"
+  }
+}

@@ -1,0 +1,33 @@
+---
+/**
+ * Dev-only route: render the proposal layout from the seed script's page content
+ * instead of from Graph. No CMS, no credentials, no network.
+ *
+ * It's the standing check on the layout — it exercises `parseItems`, every JSON
+ * shape, and the citation rewriting against the same payload that gets seeded,
+ * so a field renamed in `HyattProposal.ts` but missed in one of the three places
+ * (content type / GraphQL fragment / seed) shows up here as a blank section.
+ * It also lets you demo the page before the CMS is wired up.
+ *
+ * Returns 404 in production builds.
+ */
+import HyattProposal from '../layouts/hyatt-proposal.astro';
+import { PAGE } from '../../scripts/seed-hyatt.mjs';
+
+if (!import.meta.env.DEV) {
+  return new Response('Not found', { status: 404 });
+}
+
+// Graph returns richText as `{ html }`; the seed stores plain HTML strings.
+// `richHtml()` tolerates both, so the properties can be passed through as-is.
+const content = { ...PAGE.properties, _metadata: { displayName: PAGE.displayName, types: ['HyattProposal'] } };
+
+// `?preview=1` renders the same page with the preview chrome, so the
+// preview-only CSS (the hero's fixed height — see hyatt-proposal.astro) can be
+// checked without a CMS preview token.
+const asPreview = Astro.url.searchParams.has('preview')
+  ? { loc: 'en', ver: 'local', ctx: 'edit', fallbackNotice: null }
+  : undefined;
+---
+
+<HyattProposal content={content} preview={asPreview} />

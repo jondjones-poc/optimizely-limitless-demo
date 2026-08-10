@@ -1,0 +1,20 @@
+/**
+ * Tailwind v4 entry (native build, compiled by @tailwindcss/vite).
+ * Never add the Tailwind Play CDN — it ships an unconfigured runtime build and
+ * diverges from these tokens.
+ *
+ * Only `Base.astro` (the fallback shell) uses Tailwind. The Hyatt proposal
+ * layout is a full document with its own scoped CSS, so this file stays small
+ * on purpose — brand tokens live where the brand is rendered.
+ */
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "daisyui";
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}

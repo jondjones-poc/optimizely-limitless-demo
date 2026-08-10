@@ -1,0 +1,54 @@
+---
+/**
+ * Site shell — the fallback chrome for anything that isn't a full-document
+ * layout (errors, 404s, unregistered content types, the debug JSON panel).
+ * The Hyatt proposal renders its own complete document, so in normal operation
+ * this shell is only seen when something is wrong.
+ */
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  locale?: string;
+}
+
+const { title, description = '', locale = 'en' } = Astro.props;
+const siteBrand = import.meta.env.SITE_BRAND || 'Hyatt × Optimizely';
+const logoUrl = import.meta.env.SITE_LOGO_URL || '';
+---
+
+<!doctype html>
+<html lang={locale} data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="min-h-screen bg-base-100 text-base-content flex flex-col">
+    <header class="border-b border-base-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <a href="/" class="flex items-center gap-2 font-display font-bold text-lg">
+          {logoUrl ? <img src={logoUrl} alt={siteBrand} class="h-8" /> : <span>{siteBrand}</span>}
+        </a>
+      </div>
+    </header>
+
+    <main class="flex-1"><slot /></main>
+
+    <slot name="debug" />
+
+    <footer class="border-t border-base-200 mt-16">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-sm text-base-content/60">
+        © {new Date().getFullYear()} {siteBrand}
+      </div>
+    </footer>
+  </body>
+</html>

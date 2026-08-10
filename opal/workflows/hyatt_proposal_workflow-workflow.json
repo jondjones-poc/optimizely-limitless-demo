@@ -1,0 +1,120 @@
+{
+  "rootAgentId": "3f1c6a02-8b47-4d19-9a52-0e7c4b8d1a63",
+  "agents": {
+    "3f1c6a02-8b47-4d19-9a52-0e7c4b8d1a63": {
+      "schema_version": "1.2",
+      "agent_type": "workflow",
+      "name": "Hyatt Proposal Workflow",
+      "description": "Chat-triggered Hyatt ABM workflow: plan + research the account (Hyatt Proposal Planner, which runs the web research itself with search_web/browse_web and writes a citation-backed brief to a canvas) -> build and publish one HyattProposal page (Hyatt Proposal Builder). Say e.g. \"Build a Hyatt proposal for Optimizely covering Camp Opticon in New York and London\". Single page type, so there is no persona loop. This repo has no generic web_research agent by design - the research step is the platform's built-in search_web / browse_web / figure_out_search_keywords tools invoked directly by the planner.",
+      "version": "",
+      "agent_id": "wf_hyatt_proposal",
+      "objective": "",
+      "plan": "",
+      "is_active": true,
+      "is_deleted": false,
+      "agent_metadata": {
+        "edges": [
+          {
+            "id": "xy-edge__5a2d7e13-9c58-4e2a-8b63-1f8d5c9e2b74source-bottom-circle-6b3e8f24-ad69-4f3b-9c74-2a9e6daf3c85target-body",
+            "source": "5a2d7e13-9c58-4e2a-8b63-1f8d5c9e2b74",
+            "target": "6b3e8f24-ad69-4f3b-9c74-2a9e6daf3c85",
+            "sourceHandle": "source-bottom-circle",
+            "targetHandle": "target-body"
+          },
+          {
+            "id": "xy-edge__6b3e8f24-ad69-4f3b-9c74-2a9e6daf3c85source-bottom-circle-7c4f9a35-be7a-4a4c-8d85-3b0f7eb04d96target-body",
+            "source": "6b3e8f24-ad69-4f3b-9c74-2a9e6daf3c85",
+            "target": "7c4f9a35-be7a-4a4c-8d85-3b0f7eb04d96",
+            "sourceHandle": "source-bottom-circle",
+            "targetHandle": "target-body"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "5a2d7e13-9c58-4e2a-8b63-1f8d5c9e2b74",
+            "measured": {
+              "width": 248,
+              "height": 108
+            },
+            "position": {
+              "x": 330,
+              "y": 45
+            }
+          },
+          {
+            "id": "6b3e8f24-ad69-4f3b-9c74-2a9e6daf3c85",
+            "measured": {
+              "width": 248,
+              "height": 108
+            },
+            "position": {
+              "x": 330,
+              "y": 270
+            }
+          },
+          {
+            "id": "7c4f9a35-be7a-4a4c-8d85-3b0f7eb04d96",
+            "measured": {
+              "width": 248,
+              "height": 108
+            },
+            "position": {
+              "x": 330,
+              "y": 420
+            }
+          }
+        ]
+      },
+      "internal_version": 1,
+      "steps": [
+        {
+          "step_id": "6b3e8f24-ad69-4f3b-9c74-2a9e6daf3c85",
+          "step_type": "specialized",
+          "name": "Hyatt Proposal Planner",
+          "description": "Parses the plain-language request into the account, the event/travel calendar to target, and the lead commercial pillar; then runs the account research itself with figure_out_search_keywords / search_web / browse_web, writes a citation-backed brief to a canvas (CANVAS_ID trailer), and emits a one-page JSON page plan.",
+          "agent_id": "hyatt_proposal_planner",
+          "parameters_schema": {},
+          "next_step_id": "7c4f9a35-be7a-4a4c-8d85-3b0f7eb04d96",
+          "timeout_seconds": 3600
+        },
+        {
+          "step_id": "7c4f9a35-be7a-4a4c-8d85-3b0f7eb04d96",
+          "step_type": "specialized",
+          "name": "Hyatt Proposal Builder",
+          "description": "Reads the research brief from the planner's canvas (research_canvas_id) and creates + publishes ONE HyattProposal page in the Optimizely CMS. Hyatt-side facts come from the hyatt-vendor-facts skill. Requires container_key to be set in the Opal UI.",
+          "agent_id": "hyatt_proposal_builder",
+          "parameters_schema": {},
+          "next_step_id": null,
+          "timeout_seconds": 3600
+        }
+      ],
+      "specialized_agents_required": [
+        "hyatt_proposal_planner",
+        "hyatt_proposal_builder"
+      ],
+      "enable_personal_context": false,
+      "cwd": null,
+      "private_executions": false,
+      "triggers": [
+        {
+          "trigger_id": "5a2d7e13-9c58-4e2a-8b63-1f8d5c9e2b74",
+          "trigger_type": "message",
+          "name": "Chat",
+          "description": "Trigger when user sends a message",
+          "is_active": true
+        }
+      ],
+      "workflow_type": "deterministic",
+      "agent_choice": null,
+      "max_iterations": 10
+    },
+    "hyatt_proposal_planner": {
+      "error": "not_found",
+      "agent_id": "hyatt_proposal_planner"
+    },
+    "hyatt_proposal_builder": {
+      "error": "not_found",
+      "agent_id": "hyatt_proposal_builder"
+    }
+  }
+}
