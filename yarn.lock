@@ -6336,6 +6336,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"hyatt-limitless@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "hyatt-limitless@workspace:."
+  dependencies:
+    "@astrojs/check": "npm:^0.9.8"
+    "@astrojs/netlify": "npm:^7.0.7"
+    "@astrojs/vercel": "npm:^10.0.8"
+    "@optimizely/cms-cli": "npm:^1.0.1"
+    "@optimizely/cms-sdk": "npm:^1.0.0"
+    "@tailwindcss/typography": "npm:^0.5.16"
+    "@tailwindcss/vite": "npm:^4.1.13"
+    astro: "npm:^6.1.7"
+    daisyui: "npm:^5.0.0"
+    tailwindcss: "npm:^4.1.13"
+    typescript: "npm:^6.0.2"
+  languageName: unknown
+  linkType: soft
+
 "iconv-lite@npm:^0.7.0":
   version: 0.7.2
   resolution: "iconv-lite@npm:0.7.2"
@@ -7211,24 +7229,6 @@ __metadata:
   checksum: 10c0/f5604e7240c5c275743561442fbc5abf2a84ad94da0f5adc71d25e31fa8483048de3dcedcb7a44112a942fed305fd75841cdf6c9681c7f640c63f1049e9a5dcc
   languageName: node
   linkType: hard
-
-"limitless-hyatt-app@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "limitless-hyatt-app@workspace:."
-  dependencies:
-    "@astrojs/check": "npm:^0.9.8"
-    "@astrojs/netlify": "npm:^7.0.7"
-    "@astrojs/vercel": "npm:^10.0.8"
-    "@optimizely/cms-cli": "npm:^1.0.1"
-    "@optimizely/cms-sdk": "npm:^1.0.0"
-    "@tailwindcss/typography": "npm:^0.5.16"
-    "@tailwindcss/vite": "npm:^4.1.13"
-    astro: "npm:^6.1.7"
-    daisyui: "npm:^5.0.0"
-    tailwindcss: "npm:^4.1.13"
-    typescript: "npm:^6.0.2"
-  languageName: unknown
-  linkType: soft
 
 "listhen@npm:^1.9.0":
   version: 1.10.0
