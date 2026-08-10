@@ -74,6 +74,16 @@ command and API reference.
 No CMS yet? `yarn dev` then open **`/local-demo`** — it renders the proposal from the seed
 script's content with no credentials and no network.
 
+## The walkthrough deck
+
+**`/walkthrough`** — a 24-slide reveal.js deck explaining the whole POC: the agent chain, the
+content model, how the page adapts per account, and the engineering. It ships with the app, so
+it deploys wherever the app does and needs no network.
+
+`src/pages/walkthrough.html` is a plain HTML file, so you can also open it straight from disk
+to present. Keyboard: arrows to move, `Esc` for the overview grid, `.` to blank the screen,
+`?` for all shortcuts. Append `?print-pdf` and print for a PDF.
+
 ## Deploying
 
 Both hosts are wired up; `astro.config.mjs` picks the adapter from the build environment, so

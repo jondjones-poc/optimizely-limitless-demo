@@ -45,6 +45,7 @@ If a second customer ever appears, go back to `opal-nzt-48` — don't grow this 
 ├── netlify.toml              # Netlify build (no `base` — the app is the root)
 ├── vercel.json               # Vercel build (Root Directory = repo root)
 ├── src/                      # content types, layouts, lib, routes
+│   └── pages/walkthrough.html #   the POC walkthrough deck, served at /walkthrough
 ├── public/assets/*.jpg       # photography the deployed app serves
 ├── scripts/seed-hyatt.mjs    # seeds the example proposal via the Content API
 ├── design/                   # the hand-authored static mock — the design of record
@@ -189,12 +190,35 @@ Editor-facing labels are neutral for the same reason: the CMS tabs are **Calenda
 The field *names* stay `exp*` / `control*` / `challenger*` — renaming them would cost a
 `cms:push:force` and a re-seed for zero functional gain.
 
+## The walkthrough deck
+
+`src/pages/walkthrough.html` is a 24-slide **reveal.js** deck covering the whole POC, served by
+the app at **`/walkthrough`**. It is a plain `.html` file rather than an `.astro` page, which
+matters twice:
+
+- Astro serves a bare `.html` in `src/pages/` as a static route, so `/walkthrough` and
+  `/walkthrough/` both resolve with no extra route file.
+- It is **not** in `public/`. A file at `public/walkthrough/index.html` is shadowed by the
+  catch-all SSR route — `/walkthrough/` rendered the 404 shell and only the explicit
+  `/walkthrough/index.html` worked. Being plain HTML also means you can open it from disk to
+  present, with no dev server.
+
+reveal.js 5.2.0 and its CSS are **inlined verbatim** (MIT). Nothing is fetched at runtime —
+verified zero external requests — so the deck works offline, in a locked-down browser, and as a
+published artifact where the CSP blocks every external host.
+
+Regenerating it: the deck is assembled by a script that reads the slide bodies out of the file it
+also writes, so it is idempotent and safe to re-run. Editing slide content directly in the HTML is
+fine; the theme lives in one `<style>` block near the top. Sizes are fixed px against reveal's
+1280x720 stage, which reveal scales as one unit — do not reintroduce `clamp()`/`vw`, which fights
+that transform.
+
 ## X-ray mode — the "how was this built" overlay
 
 The proposal layout carries an **X-ray** overlay: a floating button (bottom-right) or the `x` key
 traces every component with the **Opal tools and CMS data that produced it** — the sales narrative
 for *how* a personalized page gets assembled. `Escape` exits. It's `src/layouts/hyatt-xray.astro`,
-dropped into `hyatt-proposal.astro`; 13 sections are annotated.
+dropped into `hyatt-proposal.astro`; 14 elements are annotated.
 
 To trace a new section, add three attributes to its wrapper:
 
