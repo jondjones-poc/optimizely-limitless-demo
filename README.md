@@ -7,6 +7,8 @@ year-round business-travel program — and publishes it live through Optimizely 
 
 The worked example is *Hyatt × Optimizely — a five-star basecamp for Camp Opticon 26*.
 
+**Live demo:** [https://optimizely-limitless-demo.netlify.app](https://optimizely-limitless-demo.netlify.app)
+
 > Concept demonstration for ABM training. Not an official communication of Hyatt Hotels
 > Corporation or Optimizely, Inc. Figures are illustrative; the disclaimer in the page footer
 > stays in.
@@ -93,13 +95,22 @@ there's nothing to switch by hand and nothing to point at a subdirectory.
   `VERCEL=1`, which selects the Vercel adapter; `vercel.json` supplies the framework and build
   commands.
 - **Netlify** — `netlify.toml` is authoritative (Node 22, Yarn 4). Leave the UI base directory
-  at `/`.
+  at `/`. This POC is live at [https://optimizely-limitless-demo.netlify.app](https://optimizely-limitless-demo.netlify.app).
 
 Force a target locally with `DEPLOY_TARGET=vercel yarn build` (or `netlify`).
 
 Remember to set the environment variables from `.env.example` in the host's project settings —
 `OPTIMIZELY_GRAPH_SINGLE_KEY`, `OPTIMIZELY_CMS_URL`, and `SITE_URL` (which must equal the CMS
-site's base URL exactly, or path queries return nothing — on a deployed host that's the site URL,
-not `localhost:3005`).
+site's base URL exactly, or path queries return nothing).
+
+On **Netlify** (Site configuration → Environment variables), set at least:
+
+| Variable | Value |
+|---|---|
+| `OPTIMIZELY_GRAPH_SINGLE_KEY` | Graph **Single Key** (Render Content) |
+| `SITE_URL` | `https://optimizely-limitless-demo.netlify.app` |
+| `OPTIMIZELY_CMS_URL` | `https://app-….cms.optimizely.com` (preview only) |
+
+Then trigger a new deploy so the serverless function picks them up.
 
 The static mock under `design/` is a design reference and is **not** deployed.

@@ -130,9 +130,28 @@ export const ALL_PAGE_FRAGMENTS = `
   ${HYATT_PROPOSAL_FRAGMENT}
 `;
 
+/**
+ * Prefer runtime `process.env` (Netlify/Vercel functions) over Vite's
+ * `import.meta.env`, which is inlined at build time and stays `undefined`
+ * if the host env var was missing during `yarn build`.
+ */
+export function env(name: string, fallback = ''): string {
+  const runtime = typeof process !== 'undefined' ? process.env?.[name] : undefined;
+  const buildTime = (import.meta.env as Record<string, string | undefined>)[name];
+  return String(runtime || buildTime || fallback).trim();
+}
+
 /** Create a Graph client — only the single key is required. */
 export function createGraphClient(): GraphClient {
-  return new GraphClient(import.meta.env.OPTIMIZELY_GRAPH_SINGLE_KEY);
+  const key = env('OPTIMIZELY_GRAPH_SINGLE_KEY');
+  if (!key) {
+    throw new Error(
+      'Missing OPTIMIZELY_GRAPH_SINGLE_KEY. Set it in Netlify → Site configuration → Environment variables (and locally in `.env`), then redeploy.',
+    );
+  }
+  return new GraphClient(key, {
+    graphUrl: env('OPTIMIZELY_GRAPH_URL', 'https://cg.optimizely.com/content/v2'),
+  });
 }
 
 /**
@@ -144,7 +163,15 @@ export async function getFullContentByPath(path: string, locale: string = DEFAUL
   const client = createGraphClient();
   const normalizedPath = path.endsWith('/') ? path : path + '/';
   const localePrefixed = `/${locale}${normalizedPath}`.replace(/\/{2,}/g, '/');
-  const base = import.meta.env.SITE_URL || 'https://localhost:3005';
+  const bases = [
+    ...new Set(
+      [
+        env('SITE_URL'),
+        'https://optimizely-limitless-demo.netlify.app',
+        'https://localhost:3005',
+      ].filter(Boolean),
+    ),
+  ];
 
   const query = `
     query GetContentByPath($url: String, $base: String, $locale: String) {
@@ -166,10 +193,13 @@ export async function getFullContentByPath(path: string, locale: string = DEFAUL
 
   // CMS SaaS often stores url.default with the locale prefix (`/en/slug/`).
   // Older Graph indexes omit it. Try both so either host shape resolves.
-  for (const url of [localePrefixed, normalizedPath]) {
-    const data = await client.request(query, { url, base, locale });
-    const item = data?._Content?.items?.[0];
-    if (item) return item;
+  // `url.base` must match SITE_URL; try local + the live Netlify host.
+  for (const base of bases) {
+    for (const url of [localePrefixed, normalizedPath]) {
+      const data = await client.request(query, { url, base, locale });
+      const item = data?._Content?.items?.[0];
+      if (item) return item;
+    }
   }
   return null;
 }

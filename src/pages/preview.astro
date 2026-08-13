@@ -1,10 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
 import { resolveLayout } from '../layouts/registry';
-import { getPreviewContent, createGraphClient, ALL_PAGE_FRAGMENTS } from '../lib/graph';
+import { getPreviewContent, createGraphClient, ALL_PAGE_FRAGMENTS, env } from '../lib/graph';
 import type { PreviewParams } from '../lib/graph';
 
-const cmsUrl = import.meta.env.OPTIMIZELY_CMS_URL;
+const cmsUrl = env('OPTIMIZELY_CMS_URL');
 
 const params: PreviewParams = {
   preview_token: Astro.url.searchParams.get('preview_token') ?? '',

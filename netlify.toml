@@ -10,6 +10,7 @@
   NODE_VERSION  = "22"
   YARN_VERSION  = "4.12.0"
   YARN_ENABLE_IMMUTABLE_INSTALLS = "false"
+  SITE_URL = "https://optimizely-limitless-demo.netlify.app"
 
 [functions]
   node_bundler = "esbuild"
