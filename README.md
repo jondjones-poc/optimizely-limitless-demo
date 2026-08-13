@@ -57,7 +57,7 @@ The Astro app **is** the repo root, so every command runs from here — no `cd` 
 ```bash
 yarn install
 cp .env.example .env       # fill in OPTIMIZELY_GRAPH_SINGLE_KEY at minimum
-yarn dev                   # http://localhost:4321
+yarn dev                   # http://localhost:3005
 ```
 
 Sync the content type to the CMS and seed the example page:
@@ -100,6 +100,6 @@ Force a target locally with `DEPLOY_TARGET=vercel yarn build` (or `netlify`).
 Remember to set the environment variables from `.env.example` in the host's project settings —
 `OPTIMIZELY_GRAPH_SINGLE_KEY`, `OPTIMIZELY_CMS_URL`, and `SITE_URL` (which must equal the CMS
 site's base URL exactly, or path queries return nothing — on a deployed host that's the site URL,
-not `localhost:4321`).
+not `localhost:3005`).
 
 The static mock under `design/` is a design reference and is **not** deployed.

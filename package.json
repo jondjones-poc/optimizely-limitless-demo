@@ -24,6 +24,7 @@
     "typescript": "^6.0.2"
   },
   "devDependencies": {
+    "@optimizely-opal/opal-agent-sdk": "^0.4.1",
     "@optimizely/cms-cli": "^1.0.1"
   }
 }

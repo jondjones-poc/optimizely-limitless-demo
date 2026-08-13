@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { resolveLayout } from '../layouts/registry';
-import { parseSlug, getFullContentByPath } from '../lib/graph';
+import { parseSlug, getFullContentByPath, getPublishedHyattProposal } from '../lib/graph';
 
 const rawSlug = Astro.params.slug as string | undefined;
 const { locale, path } = parseSlug(rawSlug);
@@ -11,6 +11,11 @@ let error: string | null = null;
 
 try {
   content = await getFullContentByPath(path, locale);
+  // Start page / Blank Experience has no proposal layout. For this POC, `/`
+  // should show the seeded Hyatt proposal instead of a 404 shell.
+  if (!content && path === '/') {
+    content = await getPublishedHyattProposal(locale);
+  }
 } catch (e: any) {
   error = e.message ?? 'Failed to fetch content.';
 }

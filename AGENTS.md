@@ -363,7 +363,7 @@ and the two routes' error blocks use them), which would remove the collision sur
 ## Commands
 
 ```bash
-yarn dev                # dev server on :4321 (strict — see astro.config.mjs)
+yarn dev                # dev server on :3005 (strict — see astro.config.mjs)
 yarn build              # SSR build (adapter chosen by DEPLOY_TARGET / VERCEL)
 yarn cms:login           # verify CMS credentials
 yarn cms:push            # sync content type definitions to the CMS
@@ -384,9 +384,9 @@ content; `OPTIMIZELY_CMS_URL` is needed for preview; the client id/secret are ne
 
 **`SITE_URL` must equal the CMS site's base URL exactly** — `getFullContentByPath` filters on it,
 so a mismatch returns nothing and looks like missing content. For this instance that's
-`http://localhost:4321`, which is why the dev server is pinned to 4321 with `strictPort` rather
-than allowed to drift to the next free port (`astro.config.mjs`). If 4321 is busy, free it —
-`lsof -ti:4321 | xargs -r kill -9` — don't move the app.
+`http://localhost:3005`, which is why the dev server is pinned to 3005 with `strictPort` rather
+than allowed to drift to the next free port (`astro.config.mjs`). If 3005 is busy, free it —
+`lsof -ti:3005 | xargs -r kill -9` — don't move the app.
 
 ## Known pitfalls
 

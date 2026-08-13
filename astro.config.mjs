@@ -21,15 +21,15 @@ export default defineConfig({
   adapter: target === 'vercel' ? vercel() : netlify(),
   server: {
     /**
-     * 4321 is not just a preference — it's the base URL of the CMS site this app
+     * 3005 is not just a preference — it's the base URL of the CMS site this app
      * renders (`SITE_URL`, and `url.base` on every content item in Graph). Serving
      * on any other port means preview URLs and path queries point somewhere the
-     * dev server isn't. So `strictPort` below makes a busy 4321 a hard failure:
-     * Vite would otherwise increment to 4322/4323 and hand you a server that
+     * dev server isn't. So `strictPort` below makes a busy 3005 a hard failure:
+     * Vite would otherwise increment to 3006/3007 and hand you a server that
      * looks fine and resolves no content. Free the port instead:
-     *   lsof -ti:4321 | xargs -r kill -9
+     *   lsof -ti:3005 | xargs -r kill -9
      */
-    port: 4321,
+    port: 3005,
   },
   devToolbar: {
     enabled: false,

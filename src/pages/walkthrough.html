@@ -598,7 +598,7 @@ html,body{background:var(--cream);margin:0;padding:0}
       <table>
         <thead><tr><th>Symptom</th><th>Actual cause</th></tr></thead>
         <tbody>
-          <tr><td>Every page 404s, looks like missing content</td><td><code>SITE_URL</code> must equal the CMS site's <code>url.base</code> exactly. The path query filters on it — hence the dev server is pinned to 4321 with <code>strictPort</code></td></tr>
+          <tr><td>Every page 404s, looks like missing content</td><td><code>SITE_URL</code> must equal the CMS site's <code>url.base</code> exactly. The path query filters on it — hence the dev server is pinned to 3005 with <code>strictPort</code></td></tr>
           <tr><td>A new field renders locally but is empty on the live page</td><td>The Graph fragment lists every field explicitly. <code>/local-demo</code> bypasses Graph, so it cannot catch the omission</td></tr>
           <tr><td>The stat band shrink-wrapped and looked “broken and off-centre”</td><td>DaisyUI leaks into the page through the shell's stylesheet; an unprefixed <code>.stats</code> inherited <code>display:inline-grid</code>. Seven classes collided — all now <code>hy-</code>prefixed</td></tr>
           <tr><td>Infinite scroll in CMS preview only</td><td>A <code>100vh</code> element inside an auto-resizing iframe feeds the host's height measurement back into its own height. Scoped to preview; <code>svh</code>/<code>dvh</code> do not help</td></tr>
@@ -647,7 +647,7 @@ html,body{background:var(--cream);margin:0;padding:0}
       <div>
         <h3>Commands</h3>
         <ul class="clean">
-          <li><code>yarn dev</code> — port 4321, strict, because it must match <code>SITE_URL</code></li>
+          <li><code>yarn dev</code> — port 3005, strict, because it must match <code>SITE_URL</code></li>
           <li><code>yarn cms:push</code> — sync the content type to the CMS</li>
           <li><code>node scripts/seed-hyatt.mjs</code> — seed the worked example</li>
           <li><code>node scripts/deploy-opal.mjs</code> — skills, agents, workflow</li>

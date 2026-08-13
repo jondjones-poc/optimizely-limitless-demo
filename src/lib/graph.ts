@@ -143,7 +143,8 @@ export function createGraphClient(): GraphClient {
 export async function getFullContentByPath(path: string, locale: string = DEFAULT_LOCALE) {
   const client = createGraphClient();
   const normalizedPath = path.endsWith('/') ? path : path + '/';
-  const base = import.meta.env.SITE_URL || 'http://localhost:4321';
+  const localePrefixed = `/${locale}${normalizedPath}`.replace(/\/{2,}/g, '/');
+  const base = import.meta.env.SITE_URL || 'https://localhost:3005';
 
   const query = `
     query GetContentByPath($url: String, $base: String, $locale: String) {
@@ -163,7 +164,38 @@ export async function getFullContentByPath(path: string, locale: string = DEFAUL
     }
   `;
 
-  const data = await client.request(query, { url: normalizedPath, base, locale });
+  // CMS SaaS often stores url.default with the locale prefix (`/en/slug/`).
+  // Older Graph indexes omit it. Try both so either host shape resolves.
+  for (const url of [localePrefixed, normalizedPath]) {
+    const data = await client.request(query, { url, base, locale });
+    const item = data?._Content?.items?.[0];
+    if (item) return item;
+  }
+  return null;
+}
+
+/** Fetch the published Hyatt proposal regardless of URL path. */
+export async function getPublishedHyattProposal(locale: string = DEFAULT_LOCALE) {
+  const client = createGraphClient();
+  const query = `
+    query GetHyattProposal($locale: String) {
+      _Content(
+        where: {
+          _metadata: {
+            types: { eq: "HyattProposal" }
+            locale: { eq: $locale }
+          }
+        }
+        limit: 1
+      ) {
+        items {
+          _metadata { key displayName types url { default base } }
+          ${ALL_PAGE_FRAGMENTS}
+        }
+      }
+    }
+  `;
+  const data = await client.request(query, { locale });
   return data?._Content?.items?.[0] ?? null;
 }
 

@@ -34,7 +34,7 @@ const isMain = !!process.argv[1] && path.resolve(process.argv[1]) === __filename
 // ponytail: 4-line .env reader instead of a dotenv dependency — same as seed-canon.
 const envPath = path.resolve(__dirname, '../.env');
 if (fs.existsSync(envPath)) {
-  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+  for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/);
     if (!m || process.env[m[1]]) continue;
     // Strip a trailing `# comment` and any wrapping quotes, the way dotenv/Vite
@@ -48,11 +48,34 @@ if (fs.existsSync(envPath)) {
 const CLIENT_ID = process.env.OPTIMIZELY_CMS_CLIENT_ID;
 const CLIENT_SECRET = process.env.OPTIMIZELY_CMS_CLIENT_SECRET;
 const CMS_URL = process.env.OPTIMIZELY_CMS_URL;
-const CONTAINER = process.env.HYATT_CONTAINER_KEY;
+/** CMS API v1 keys are undashed UUIDs. Accept either form from .env / the UI. */
+const CONTAINER = String(process.env.HYATT_CONTAINER_KEY || '').replace(/-/g, '');
 const SLUG = process.env.HYATT_SLUG || 'hyatt-optimizely';
 const DISPLAY_NAME = process.env.HYATT_DISPLAY_NAME;
-const API = 'https://api.cms.optimizely.com/preview3/experimental/content';
+const API = 'https://api.cms.optimizely.com/v1/content';
 const DRY_RUN = !!process.env.DRY_RUN;
+
+const RICH_TEXT_FIELDS = new Set([
+  'heroHeadlineHtml',
+  'heroLedeHtml',
+  'trailHeadingHtml',
+  'teamHeadingHtml',
+  'offerHeadingHtml',
+  'expHeadingHtml',
+  'stayHeadingHtml',
+  'careHeadingHtml',
+  'quoteHtml',
+  'ctaHeadingHtml',
+]);
+
+/** Wrap preview3-style property values for CMS API v1 (`{ value }` / richText `{ value: { html } }`). */
+function wrapProperties(properties) {
+  const out = {};
+  for (const [key, val] of Object.entries(properties)) {
+    out[key] = RICH_TEXT_FIELDS.has(key) ? { value: { html: val } } : { value: val };
+  }
+  return out;
+}
 
 // ─── Env validation ──────────────────────────────────────────────────────
 const missing = [];
@@ -121,22 +144,74 @@ async function deleteBySlug(token, slug) {
   if (data?.errors) console.warn(`  · Graph lookup errored: ${data.errors[0]?.message}`);
   for (const it of data?.data?._Content?.items ?? []) {
     if ((it._metadata.url?.default ?? '').includes(slug)) {
-      await fetch(`${API}/${it._metadata.key}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const delKey = String(it._metadata.key || '').replace(/-/g, '');
+      await fetch(`${API}/${delKey}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       console.log(`  · deleted existing ${slug} (${it._metadata.key})`);
     }
   }
 }
 
 async function createPage(token, { displayName, contentType, routeSegment, properties }) {
-  // locale + contentType are required on create despite being readOnly in the spec.
-  const body = { displayName, contentType, locale: 'en', container: CONTAINER, routeSegment, status: 'published', properties };
+  // preview3 was retired 2026-08-01 — v1 uses NewContent + initialVersion, then :publish.
+  const body = {
+    contentType,
+    container: CONTAINER,
+    initialVersion: {
+      displayName,
+      locale: 'en',
+      routeSegment,
+      properties: wrapProperties(properties),
+    },
+  };
   const res = await fetch(API, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Create failed (${routeSegment}): ${res.status} ${await res.text()}`);
-  return res.json();
+  const createText = await res.text();
+  if (!res.ok) throw new Error(`Create failed (${routeSegment}): ${res.status} ${createText}`);
+  const created = createText ? JSON.parse(createText) : {};
+  const location = res.headers.get('location') || res.headers.get('Location') || '';
+  const key =
+    created.key ||
+    location.match(/\/content\/([0-9a-f]+)/i)?.[1] ||
+    '';
+  if (!key) {
+    throw new Error(
+      `Create returned no key (${res.status}): body=${createText || '(empty)'} location=${location || '(none)'}`,
+    );
+  }
+
+  const version =
+    created.version ??
+    created.initialVersion?.version ??
+    (await latestVersion(token, key));
+  if (!version) throw new Error(`Create returned no version for ${key}: ${createText || JSON.stringify(created)}`);
+
+  const pub = await fetch(`${API}/${key}/versions/${version}:publish`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: true }),
+  });
+  const pubText = await pub.text();
+  if (!pub.ok) throw new Error(`Publish failed (${routeSegment}): ${pub.status} ${pubText}`);
+  return { key, version, ...created };
+}
+
+async function latestVersion(token, key) {
+  const res = await fetch(`${API}/${key}/versions`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const text = await res.text();
+  if (!text) return null;
+  const data = JSON.parse(text);
+  const items = Array.isArray(data) ? data : data.items ?? data.results ?? [];
+  return items[0]?.version ?? items[0]?.id ?? null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
